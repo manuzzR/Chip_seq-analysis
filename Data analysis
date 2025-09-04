@@ -1,0 +1,19 @@
+#if you are working in compute canada then load module as below
+module load bowtie2/2.5.4 StdEnv/2023
+module load samtools
+# create a index genome
+bowtie2-build referene_genome.fasta genome_index
+# to map woth refrence genome and chip-data with immunoprecipitate
+bowtie2 -x genome_index \
+  -1 antigfp_1.fastq.gz \
+  -2 antigfp_2.fastq.gz \
+  | samtools view -bS - \
+  | samtools sort -o antigfp.sorted.bam
+samtools index antigfp.sorted.bam
+# to map woth refrence genome and input data ( without immunoprecipiate) 
+bowtie2 -x genome_index \
+  -1 non_antigfp_1.fastq.gz \
+  -2 non_antigfp_2.fastq.gz \
+  | samtools view -bS - \
+  | samtools sort -o non_antigfp.sorted.bam
+samtools index antigfp.sorted.bam
