@@ -1,19 +1,51 @@
+#!/bin/bash 
+#SBATCH --account=def-labcestari
+#SBATCH --job-name=alighment_and_filter
+#SBATCH --time=6:00:00
+#SBATCH --nodes=1
+#SBATCH --ntask-per-nodes=32
+#SBATCH --mem=150G
+################################################################
+#### above line is to submit job in compute canada #############
+###############################################################
+
 #if you are working in compute canada then load module as below
 module load bowtie2/2.5.4 StdEnv/2023
 module load samtools
 # create a index genome
 bowtie2-build referene_genome.fasta genome_index
-# to map woth refrence genome and chip-data with immunoprecipitate
+# to map woth refrence genome and chip-data (sample with immunoprecipitate)
 bowtie2 -x genome_index \
   -1 antigfp_1.fastq.gz \
   -2 antigfp_2.fastq.gz \
-  | samtools view -bS - \
+  | samtools view -S -b -q 20 -F 2304 \
   | samtools sort -o antigfp.sorted.bam
 samtools index antigfp.sorted.bam
 # to map woth refrence genome and input data ( without immunoprecipiate) 
 bowtie2 -x genome_index \
   -1 non_antigfp_1.fastq.gz \
   -2 non_antigfp_2.fastq.gz \
-  | samtools view -bS - \
+  | samtools view -S -b -q 20 -F 2304 \
   | samtools sort -o non_antigfp.sorted.bam
-samtools index antigfp.sorted.bam
+samtools index non_antigfp.sorted.bam
+
+# to check if aligment work or not 
+samtools flagstat antigfp.sorted.bam
+samtools flagstat non_antigfp.sorted.bam
+
+######################################################################
+##### Now We will work on chip seq analysis using deeptools###########
+######################################################################
+
+module load python
+source $HOME/HI_C_ENV/bin/activate
+pip install deeptools
+
+###### perform bamcompare between chip and input data ###############
+
+bamCompare -b1 antigfp.sorted.bam -b2 non_antigfp.sorted.bam \
+ --outFileName chip-inp-bpm.bw \
+ --normalizeUsing BPM --extendReads 720 \
+ --scaleFactorsMethod None \
+ --binSize 50 --smoothLength 60 --centerReads \
+ --outFileFormat bigwig --numberOfProcessors 10
